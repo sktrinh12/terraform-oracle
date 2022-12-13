@@ -1,0 +1,99 @@
+# EC2 IAM ROLE
+resource "aws_iam_role" "ec2_role_dotmatics" {
+  name = "ec2_role_dotmatics"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+
+  tags = {
+    Application = "dotmatics"
+    Created ="TF"
+    Environment = "Development"
+  }
+}
+
+# EC2 IAM PROFILE
+resource "aws_iam_instance_profile" "ec2_profile_dotmatics" {
+  name = "ec2_profile_dotmatics"
+  role = aws_iam_role.ec2_role_dotmatics.name
+}
+
+# EC2 IAM POLICY
+resource "aws_iam_role_policy" "ec2_policy" {
+  name = "ec2_policy"
+  role = aws_iam_role.ec2_role_dotmatics.id
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+         "arn:aws:s3:::fount-data/DevOps"
+      ]
+    }
+}
+EOF
+}
+
+# EC2 resource
+resource "aws_instance" "dotmatics" {
+  ami           = var.awsprops.ami
+  instance_type = var.awsprops.itype
+  subnet_id = var.awsprops.subnet 
+  key_name = var.awsprops.keyname
+
+  root_block_device {
+    volume_size = var.awsprops.volume_size
+    volume_type = var.awsprops.volume_type
+    delete_on_termination = true
+    iops = 150
+  }
+
+  user_data = <<-EOF
+    #!/bin/bash
+    set -ex
+    sudo yum update -y
+    sudo yum install -y yum-utils
+    sudo yum -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    sudo systemctl start docker
+  EOF
+
+  vpc_security_group_ids = [
+    # module.ec2_sg.security_group_id,
+    module.dev_ssh_sg.security_group_id
+  ]
+  iam_instance_profile = aws_iam_instance_profile.ec2_profile_dotmatics.name
+
+  tags = {
+    Application = "dotmatics"
+    Name = "dotmatics"
+    Created ="TF"
+    Environment = "Development"
+  }
+
+  monitoring              = true
+  disable_api_termination = false
+  ebs_optimized           = true
+}
+
+output "ec2instance" {
+  value = aws_instance.dotmatics.private_ip
+}

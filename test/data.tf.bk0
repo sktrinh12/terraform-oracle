@@ -1,0 +1,16 @@
+data "aws_ami" "rhel" {
+  most_recent = true
+  owners      = ["309956199498"] // Red Hat's Account ID
+
+  filter {
+    name   = "name"
+    values = ["RHEL-7.9*"]
+  }
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+}
+
+
+
