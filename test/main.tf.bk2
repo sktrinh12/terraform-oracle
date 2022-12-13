@@ -83,8 +83,8 @@ resource "aws_instance" "dotmatics" {
   iam_instance_profile = aws_iam_instance_profile.ec2_profile_dotmatics.name
 
   tags = {
-    Application = "dotmatics"
-    Name = "dotmatics"
+    Application = "oracle"
+    Name = "oracle"
     Created ="TF"
     Environment = "Development"
   }
