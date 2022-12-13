@@ -75,28 +75,28 @@ resource "aws_instance" "ortest" {
   # The source is the location of the bash script
   # on the local linux box you are executing terraform
   # from.  The destination is on the new AWS instance.
-  # provisioner "file" {
-  #   source      = "oracle_install.sh"
-  #   destination = "/tmp/oracle_install.sh"
-  # }
+  provisioner "file" {
+    source      = "./config-files/oracle_install.sh"
+    destination = "/home/oracle/oracle_install.sh"
+  }
 
-  # # Change permissions on bash script and execute from ec2-user.
-  # provisioner "remote-exec" {
-  #   inline = [
-  #     "chmod +x /tmp/oracle_install.sh",
-  #     "sudo /tmp/oracle_install.sh",
-  #   ]
-  # }
+  # # Change permissions on bash script and execute
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /home/oracle/oracle_install.sh",
+      "sudo /home/oracle/oracle_install.sh",
+    ]
+  }
 
   # # Establishes connection to be used by all
   # # generic remote provisioners (i.e. file/remote-exec)
-  # connection {
-  #   host = self.private_ip
-  #   agent = true
-  #   type = "ssh"
-  #   user = "ec2-user"
-  #   private_key = file(pathexpand("~/.ssh/eks-apps.pem"))
-  # }
+  connection {
+    host = self.private_ip
+    agent = true
+    type = "ssh"
+    user = "ec2-user"
+    private_key = file(pathexpand("~/.ssh/eks-apps.pem"))
+  }
   
   vpc_security_group_ids = [
     module.security_group.ec2_sg_private
@@ -121,6 +121,6 @@ module "security_group" {
     vpc_id = var.awsprops.vpc
 }
 
-output "ec2instance" {
+output "ec2_private_ip" {
   value = aws_instance.ortest.private_ip
 }
