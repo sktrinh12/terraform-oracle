@@ -77,19 +77,20 @@ resource "aws_instance" "ortest" {
   # from.  The destination is on the new AWS instance.
   provisioner "file" {
     source      = "./config-files/oracle_install.sh"
-    destination = "/home/oracle/oracle_install.sh"
+    destination = "/home/ec2-user/oracle_install.sh"
   }
 
-  # # Change permissions on bash script and execute
+  # Change permissions on bash script and execute
   provisioner "remote-exec" {
     inline = [
-      "chmod +x /home/oracle/oracle_install.sh",
-      "sudo /home/oracle/oracle_install.sh",
+      "sudo chmod +x /home/ec2-user/oracle_install.sh",
+      "sudo /home/ec2-user/oracle_install.sh",
     ]
+    on_failure = continue
   }
 
-  # # Establishes connection to be used by all
-  # # generic remote provisioners (i.e. file/remote-exec)
+  # Establishes connection to be used by all
+  # generic remote provisioners (i.e. file/remote-exec)
   connection {
     host = self.private_ip
     agent = true
