@@ -19,8 +19,8 @@ resource "aws_iam_role" "ec2_role_ortest" {
 EOF
 
   tags = {
-    Application = "ortest"
-    Created ="TF"
+    Application = "Oracle"
+    Created     = "TF"
     Environment = "Development"
   }
 }
@@ -40,16 +40,28 @@ resource "aws_iam_role_policy" "ec2_policy" {
 {
   "Version": "2012-10-17",
   "Statement": [
-    {
+{
       "Action": [
-        "s3:GetObject",
-        "s3:PutObject",
+        "s3:Get*",
         "s3:ListBucket"
       ],
       "Effect": "Allow",
+      "Resource": [
+          "arn:aws:s3:::fount-data",
+          "arn:aws:s3:::fount-data/*"
+      ]
+},
+{
+      "Action": [
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:PutObject",
+        "s3:ReplicateObject"
+      ],
+      "Effect": "Allow",
   "Resource": [
-      "arn:aws:s3:::*/*",
-      "arn:aws:s3:::fount-data/DevOps"
+      "arn:aws:s3:::fount-data/DevOps",
+      "arn:aws:s3:::fount-data/DevOps/*"
    ]
     }
   ]
@@ -59,10 +71,11 @@ EOF
 
 # EC2 resource
 resource "aws_instance" "ortest" {
+  count         = var.awsprops.count
   ami           = var.awsprops.ami
   instance_type = var.awsprops.itype
-  subnet_id = var.awsprops.subnet 
-  key_name = var.awsprops.keyname
+  subnet_id     = var.awsprops.subnet 
+  key_name      = var.awsprops.keyname
 
   root_block_device {
     volume_size = var.awsprops.volume_size
@@ -92,10 +105,10 @@ resource "aws_instance" "ortest" {
   # Establishes connection to be used by all
   # generic remote provisioners (i.e. file/remote-exec)
   connection {
-    host = self.private_ip
+    host  = self.private_ip
     agent = true
-    type = "ssh"
-    user = "ec2-user"
+    type  = "ssh"
+    user  = "ec2-user"
     private_key = file(pathexpand("~/.ssh/eks-apps.pem"))
   }
   
@@ -106,9 +119,9 @@ resource "aws_instance" "ortest" {
   iam_instance_profile = aws_iam_instance_profile.ec2_profile_ortest.name
 
   tags = {
-    Application = "ortest"
-    Name = "ortest"
-    Created ="TF"
+    Application = "Oracle"
+    Name        = "oracle_ec2_${count.index +1}"
+    Created     = "TF"
     Environment = "Development"
   }
 
@@ -122,6 +135,3 @@ module "security_group" {
     vpc_id = var.awsprops.vpc
 }
 
-output "ec2_private_ip" {
-  value = aws_instance.ortest.private_ip
-}
