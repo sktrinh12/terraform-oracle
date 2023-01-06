@@ -86,18 +86,18 @@ resource "aws_instance" "ortest" {
 
   # Copy in the bash script we want to execute.
   # The source is the location of the bash script
-  # on the local linux box you are executing terraform
+  # on the local system you are executing terraform
   # from.  The destination is on the new AWS instance.
   provisioner "file" {
-    source      = "./config-files/oracle_install.sh"
-    destination = "/home/ec2-user/oracle_install.sh"
+    source      = "./config-files/${var.shfile[count.index]}"
+    destination = "/home/ec2-user/${var.shfile[count.index]}"
   }
 
   # Change permissions on bash script and execute
   provisioner "remote-exec" {
     inline = [
-      "sudo chmod +x /home/ec2-user/oracle_install.sh",
-      "sudo /home/ec2-user/oracle_install.sh",
+      "sudo chmod +x /home/ec2-user/${var.shfile[count.index]}",
+      "sudo /home/ec2-user/${var.shfile[count.index]}",
     ]
     on_failure = continue
   }
