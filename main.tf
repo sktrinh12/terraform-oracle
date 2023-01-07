@@ -40,30 +40,29 @@ resource "aws_iam_role_policy" "ec2_policy" {
 {
   "Version": "2012-10-17",
   "Statement": [
-{
+  {
       "Action": [
         "s3:Get*",
         "s3:ListBucket"
       ],
       "Effect": "Allow",
       "Resource": [
-          "arn:aws:s3:::fount-data",
-          "arn:aws:s3:::fount-data/*"
+        "arn:aws:s3:::fount-data",
+        "arn:aws:s3:::fount-data/*"
       ]
-},
-{
+  },
+  {
       "Action": [
-        "s3:DeleteObject",
-        "s3:DeleteObjectVersion",
         "s3:PutObject",
-        "s3:ReplicateObject"
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging"
       ],
       "Effect": "Allow",
-  "Resource": [
-      "arn:aws:s3:::fount-data/DevOps",
-      "arn:aws:s3:::fount-data/DevOps/*"
-   ]
-    }
+      "Resource": [
+        "arn:aws:s3:::fount-data/DevOps",
+        "arn:aws:s3:::fount-data/DevOps/*"
+       ]
+  }
   ]
 }
 EOF
