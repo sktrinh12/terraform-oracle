@@ -6,6 +6,7 @@ export ORACLE_SID=orcl_dm
 export PATH=$PATH:$ORACLE_HOME/bin
 BACKUP='/orabackup/ORA_DM'
 S3B=DevOps/rman_backups
+AWS=/usr/local/bin/aws
 
 fullbackup() {
 	mkdir -p $BACKUP/archivelogs/$DATE
@@ -40,28 +41,21 @@ EOF
 }
 
 uploadbackup() {
-	check=$(/usr/local/bin/aws s3api list-objects-v2 --bucket fount-data --prefix "${S3B}/${DATE}" --query 'Contents[]')
+	check=$($AWS s3api list-objects-v2 --bucket fount-data --prefix "${S3B}/${DATE}" --query 'Contents[]')
 	first_string=$(echo $check | awk '{print $1}')
 	echo $first_string
 	[[ $first_string == 'null' ]] && {
 		echo "creating prefix (folder) ${DATE}"
-		/usr/local/bin/aws s3api put-object --bucket fount-data --key $S3B/$DATE/archivelogs
+		$AWS s3api put-object --bucket fount-data --key $S3B/$DATE/archivelogs
 	}
 	# upoad files to s3
-	/usr/local/bin/aws s3 cp $BACKUP/autobackup/$DATE s3://fount-data/$S3B/$DATE/ --recursive --exclude 'o1_*'
-	/usr/local/bin/aws s3 cp $BACKUP/archivelogs/$DATE s3://fount-data/$S3B/$DATE/archivelogs/ --recursive
-	# tag backups
-	for file in $BACKUP/autobackup/$DATE/*; do
-		/usr/local/bin/aws s3api put-object-tagging \
+	$AWS s3 cp $BACKUP/autobackup/$DATE s3://fount-data/$S3B/$DATE/ --quiet --recursive --exclude 'o1_*'
+
+	# tag backups/archivelogs
+	for file in $($AWS s3 ls s3://fount-data/$S3B/$DATE/ --recursive | awk 'NR>=2{print $4}'); do
+		$AWS s3api put-object-tagging \
 			--bucket fount-data \
-			--key $S3B/$DATE/$(basename $file) \
-			--tagging '{"TagSet": [{ "Key": "Name", "Value": "RMAN" }]}'
-	done
-	# tag archivelogs
-	for file in $BACKUP/archivelogs/$DATE/*; do
-		/usr/local/bin/aws s3api put-object-tagging \
-			--bucket fount-data \
-			--key $S3B/$DATE/$(basename $file) \
+			--key $S3B/$DATE/$file \
 			--tagging '{"TagSet": [{ "Key": "Name", "Value": "RMAN" }]}'
 	done
 }
