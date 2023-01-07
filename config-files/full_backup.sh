@@ -26,7 +26,6 @@ backup device type disk tag 'ORA_DM'
 format = '${BACKUP}/archivelogs/${DATE}/%d_%u' 
 archivelog all not backed up delete all input;
 delete noprompt obsolete device type disk;
-backup as copy current controlfile format '${BACKUP}/autobackup/${DATE}/ctlfile_%c.ctl'; 
 }
 exit
 EOF
