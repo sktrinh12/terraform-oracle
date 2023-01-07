@@ -9,7 +9,6 @@ S3B=DevOps/rman_backups
 AWS=/usr/local/bin/aws
 
 fullbackup() {
-	mkdir -p $BACKUP/archivelogs/$DATE
 	rman log=$BACKUP/bkpscripts/b_$DATE_full_bkp.log <<EOF
 
 connect target /
@@ -34,6 +33,8 @@ EOF
 }
 
 pfile() {
+	mkdir -p $BACKUP/archivelogs/$DATE
+	mkdir -p $BACKUP/autobackup/$DATE
 	sqlplus / as sysdba <<EOF
 		create spfile='${BACKUP}/autobackup/${DATE}/spfileorcl_dm.ora' from pfile='${ORACLE_HOME}/dbs/spfileorcl_dm.ora';
 		exit
