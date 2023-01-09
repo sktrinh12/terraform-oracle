@@ -9,7 +9,7 @@ S3B=DevOps/rman_backups
 AWS=/usr/local/bin/aws
 
 fullbackup() {
-	rman log=$BACKUP/bkpscripts/b_$DATE_full_bkp.log <<EOF
+	rman log='${BACKUP}/bkpscripts/b_${DATE}_full_bkp.log' <<EOF
 
 connect target /
 
@@ -52,11 +52,12 @@ uploadbackup() {
 	$AWS s3 cp $BACKUP/autobackup/$DATE s3://fount-data/$S3B/$DATE/ --quiet --recursive --exclude 'o1_*'
 
 	# tag backups/archivelogs
-	for file in $($AWS s3 ls s3://fount-data/$S3B/$DATE/ --recursive | awk 'NR>=2{print $4}'); do
+	for file in $($AWS s3 ls s3://fount-data/$S3B/$DATE/ --recursive | awk 'NR>=1{print $4}'); do
 		$AWS s3api put-object-tagging \
 			--bucket fount-data \
-			--key $S3B/$DATE/$file \
+			--key "${file}" \
 			--tagging '{"TagSet": [{ "Key": "Name", "Value": "RMAN" }]}'
+		#echo "${AWS} s3api put-object-tagging --bucket fount-data --key ${file}"
 	done
 }
 
