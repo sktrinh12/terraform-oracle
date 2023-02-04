@@ -12,13 +12,13 @@ This Terraform script creates a development environment in AWS. It creates an EC
 
 #### AWS IAM Role and Policy
 
-The Terraform script creates an IAM role `ec2_role_ortest` with an assume role policy that allows EC2 instances to assume the role. This role is then associated with an IAM instance profile "ec2_profile_ortest". A role policy is also created that grants the role the necessary permissions to perform actions on the S3 bucket "fount-data". The policy allows for getting objects and listing the bucket contents, as well as putting objects, object tags, and object version tags.
+The Terraform script creates an IAM role `ec2_role_ortest` with an assume role policy that allows EC2 instances to assume the role. This role is then associated with an IAM instance profile `ec2_profile_ortest`. A role policy is also created that grants the role the necessary permissions to perform actions on the S3 bucket "fount-data". The policy allows for getting objects and listing the bucket contents, as well as putting objects, object tags, and object version tags.
 
 #### AWS EC2 Instance
 
 The Terraform script creates an EC2 instance with the specified AMI, instance type, and subnet. The instance's root block device is also specified with a volume size and type. The instance is also configured to be EBS optimized. Provisioning is performed on the EC2 instance using a bash script. The script is copied to the instance, made executable, and then executed. The instance is also associated with the previously created IAM instance profile. The EC2 instance is part of a VPC with the specified security group, and is tagged with relevant metadata such as application name and environment.
 
-#### Variables
+#### `oracle_install.sh` Script
 
 The following variables are used in the script:
 

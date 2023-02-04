@@ -1,0 +1,31 @@
+orcl_dm.__data_transfer_cache_size=0
+orcl_dm.__db_cache_size=1694498816
+orcl_dm.__inmemory_ext_roarea=0
+orcl_dm.__inmemory_ext_rwarea=0
+orcl_dm.__java_pool_size=0
+orcl_dm.__large_pool_size=16777216
+orcl_dm.__oracle_base='/u01/app/oracle'#ORACLE_BASE set from environment
+orcl_dm.__pga_aggregate_target=1577058304
+orcl_dm.__sga_target=4714397696
+orcl_dm.__shared_io_pool_size=134217728
+orcl_dm.__shared_pool_size=2818572288
+orcl_dm.__streams_pool_size=33554432
+orcl_dm.__unified_pga_pool_size=0
+*.audit_file_dest='/u01/app/oracle/product/19.3/db_home/admin/ora_dm/adump'
+*.audit_trail='db'
+*.compatible='19.0.0'
+*.control_files='/oradata/ORA_DM/controlfile/o1_mf_kmodldw5_.ctl','/orabackup/ORA_DM/controlfile/bkp_ctlfile.ctl'#Restore Controlfile
+*.db_block_size=8192
+*.db_create_file_dest='/oradata'
+*.db_name='ora_dm'
+*.db_recovery_file_dest='/orabackup'
+*.db_recovery_file_dest_size=322122547200
+*.diagnostic_dest='/u01/app/oracle'
+*.dispatchers='(PROTOCOL=TCP) (SERVICE=oradmXDB)'
+*.log_archive_dest_1='LOCATION=/orabackup/ORA_DM/archivelogs'
+*.open_cursors=300
+*.pga_aggregate_target=1497m
+*.processes=300
+*.remote_login_passwordfile='EXCLUSIVE'
+*.sga_target=4488m
+*.undo_tablespace='UNDOTBS1'
