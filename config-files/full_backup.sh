@@ -20,7 +20,7 @@ run
 
 backup incremental level 0 
 cumulative device type disk 
-format '${BACKUP}/autobackup/${DATE}/%U.bkp'
+format '${BACKUP}/autobackup/full_dm_bkup.bkp'
 tag 'ORA_DM' database;
 backup device type disk tag 'ORA_DM' 
 format = '${BACKUP}/archivelogs/${DATE}/%d_%u' 
@@ -32,10 +32,11 @@ EOF
 }
 
 pfile() {
+        rm -rf $BACKUP/autobackup/*
+	#mkdir -p $BACKUP/autobackup/$DATE
 	mkdir -p $BACKUP/archivelogs/$DATE
-	mkdir -p $BACKUP/autobackup/$DATE
 	sqlplus / as sysdba <<EOF
-		create spfile='${BACKUP}/autobackup/${DATE}/spfileorcl_dm.ora' from pfile='${ORACLE_HOME}/dbs/spfileorcl_dm.ora';
+		create spfile='${BACKUP}/autobackup/spfileorcl_dm.ora' from pfile='${ORACLE_HOME}/dbs/spfileorcl_dm.ora';
 		exit
 EOF
 }
@@ -46,10 +47,10 @@ uploadbackup() {
 	echo $first_string
 	[[ $first_string == 'null' ]] && {
 		echo "creating prefix (folder) ${DATE}"
-		$AWS s3api put-object --bucket fount-data --key $S3B/$DATE/archivelogs
+		$AWS s3api put-object --bucket fount-data --key $S3B/$DATE/
 	}
 	# upoad files to s3
-	$AWS s3 cp $BACKUP/autobackup/$DATE s3://fount-data/$S3B/$DATE/ --quiet --recursive --exclude 'o1_*'
+	$AWS s3 cp $BACKUP/autobackup/ s3://fount-data/$S3B/$DATE/ --quiet --recursive
 
 	# tag backups/archivelogs
 	for file in $($AWS s3 ls s3://fount-data/$S3B/$DATE/ --recursive | awk 'NR>=1{print $4}'); do
@@ -57,7 +58,7 @@ uploadbackup() {
 			--bucket fount-data \
 			--key "${file}" \
 			--tagging '{"TagSet": [{ "Key": "Name", "Value": "RMAN" }]}'
-		#echo "${AWS} s3api put-object-tagging --bucket fount-data --key ${file}"
+	#echo "${AWS} s3api put-object-tagging --bucket fount-data --key ${file}"
 	done
 }
 
