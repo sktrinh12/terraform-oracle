@@ -6,19 +6,23 @@ BACKUP=/orabackup/ORA_DM
 ORA_DATA=/oradata/ORA_DM
 S3B=DevOps/rman_backups
 AWS=/usr/local/bin/aws
-<<<<<<< HEAD
 PINPOINT='C\\\$PINPOINT'
 FILE_NAME=reindex.lst
-LICENSE='LICENSE_NUMBER'
-=======
->>>>>>> parent of 3036307 (re-index dotmatics pinpoint and download lib file)
+LICENSE="$1" # the first argument passed from tf apply
+
+echo $LICENSE
 
 # set -x enables a mode of the shell where all executed commands are printed to the terminal
 set -x
 
 # install required packages
 sudo yum update -y
-sudo yum install -y yum-utils oracle-database-preinstall-19c epel-release jq rlwrap
+sudo yum install -y yum-utils oracle-database-preinstall-19c jq wget
+
+# install rlwrap
+wget https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+rpm -ivh epel-release-latest-7.noarch.rpm
+sudo yum install -y rlwrap
 
 # download & install aws cli
 cd /tmp
@@ -33,7 +37,7 @@ chmod -R 775 /u01
 rm -f $TMP_HOME/.bash_profile
 
 # create bash_profile
-echo <<EOF >>$TMP_HOME/.bash_profile
+cat <<EOF >$TMP_HOME/.bash_profile
 # .bash_profile
 # Get the aliases and functions
 if [ -f ~/.bashrc ]; then
@@ -41,25 +45,27 @@ if [ -f ~/.bashrc ]; then
 fi
 # User specific environment and startup programs
 export ORACLE_BASE=/u01/app/oracle
-export ORACLE_HOME=/u01/app/oracle/product/19.3/db_home
+export ORACLE_HOME=${ORACLE_HOME}
 export ORACLE_SID=orcl_dm
+export BACKUP=${BACKUP}
 export LD_LIBRARY_PATH=\$ORACLE_HOME/lib:/lib:/usr/lib
 export CLASSPATH=\$ORACLE_HOME/jlib:\$ORACLE_HOME/rdbms/jlib
 export NLS_LANG=american_america.al32utf8
 export NLS_DATE_FORMAT="yyyy-mm-dd:hh24:mi:ss"
-PATH=$PATH:$HOME/.local/bin:$ORACLE_HOME/bin
+PATH=\$PATH:\$HOME/.local/bin:\$ORACLE_HOME/bin
 export PATH
 
 alias sqlp='rlwrap sqlplus / as sysdba'
-alias rman='rlwrap rman target /'
+alias rmanrl='rlwrap rman target /'
 EOF
 
+$AWS s3 cp s3://fount-data/DevOps/libpinpoint_lnx_64_2.4.so $TMP_HOME
 $AWS s3 cp s3://fount-data/DevOps/LINUX.X64_193000_db_home.zip $TMP_HOME
 $AWS s3 cp s3://fount-data/DevOps/oracle_silent_install $TMP_HOME
 $AWS s3 cp s3://fount-data/DevOps/tnsnames.ora $TMP_HOME
 $AWS s3 cp s3://fount-data/DevOps/listener.ora $TMP_HOME
 chmod +x $TMP_HOME/oracle_silent_install
-chown oracle:oinstall $TMP_HOME/.bash_profile
+chown oracle:oinstall $TMP_HOME/.bash_profile $TMP_HOME/libpinpoint_lnx_64_2.4.so
 sed -i "s/_HOSTNAME_/$HOSTNAME/g" $TMP_HOME/tnsnames.ora
 sed -i "s/_HOSTNAME_/$HOSTNAME/g" $TMP_HOME/listener.ora
 
@@ -80,12 +86,15 @@ echo "done running as oracle user"
 sudo /u01/app/oraInventory/orainstRoot.sh
 sudo $ORACLE_HOME/root.sh
 mv $TMP_HOME/*.ora $ORACLE_HOME/network/admin
+mv $TMP_HOME/libpinpoint_lnx_64_2.4.so $ORACLE_HOME/lib
 # add port rule to firewall
 firewall-cmd --zone=public --add-port=1521/tcp --permanent
 firewall-cmd --reload
-mkdir -p $BACKUP/archivelogs $BACKUP/autobackup
-mkdir -p $ORA_DATA/controlfile $ORA_DATA/datafile
-mkdir -p $ORACLE_HOME/admin/ora_dm/adump
+mkdir -p $BACKUP/autobackup \
+	$BACKUP/bkpscripts \
+	$ORA_DATA/controlfile \
+	$ORA_DATA/datafile \
+	$ORACLE_HOME/admin/ora_dm/adump
 chown -R oracle:oinstall $ORACLE_HOME/admin/ora_dm/adump
 chown -R oracle:oinstall $BACKUP
 chown -R oracle:oinstall $ORA_DATA
@@ -103,18 +112,16 @@ echo $newest_folder # contains '/' already
 echo
 
 # download newest backup
-$AWS s3 cp s3://fount-data/$S3B$newest_folder $BACKUP/autobackup$newest_folder --recursive --quiet
-mv $BACKUP/autobackup$newest_folder/spfileorcl_dm.ora $ORACLE_HOME/dbs/
-mkdir -p $BACKUP/archivelogs/$DATE
-mv $BACKUP/autobackup$newest_folder/archivelogs/* $BACKUP/archivelogs/$DATE
+$AWS s3 cp s3://fount-data/$S3B$newest_folder $BACKUP/autobackup --recursive --quiet
 
-# ensure file path in init file is correct
-# sed -i -E 's|(LOCATION=\/orabackup\/)|\1ORA_DM\/|g' $ORACLE_HOME/dbs/spfileorcl_dm.ora
+# move full backup cron job file
+sudo chown oracle:oinstall /home/ec2-user/full_backup.sh
+mv /home/ec2-user/full_backup.sh $BACKUP/bkpscripts
 
 # startup
 sudo -i -u oracle bash <<EOF
 sqlplus / as sysdba <<EOL
-  startup NOMOUNT pfile=$ORACLE_HOME/dbs/spfileorcl_dm.ora;
+  startup NOMOUNT pfile='${BACKUP}/autobackup/pfileorcl_dm.ora';
   exit
 EOL
 EOF
@@ -126,7 +133,7 @@ rman target / <<EOL
   alter database mount;
   crosscheck backup;
   delete noprompt expired backup;
-  catalog start with '${BACKUP}/archivelogs${newest_folder}' noprompt;
+  catalog start with '${BACKUP}/autobackup' noprompt;
   crosscheck archivelog all;
   change archivelog all validate;
   restore database;
@@ -134,15 +141,12 @@ rman target / <<EOL
   exit
 EOL
 EOF 
-
  
 
 # alter db & test
 sudo -i -u oracle bash <<EOF
-sqlplus / as sysdba <<'EOL'
+sqlplus / as sysdba <<EOL
   alter database open resetlogs;
-  select name, open_mode from v\$database;
-<<<<<<< HEAD
 	SET heading OFF;
 	SET linesize 1000;
 	SET pagesize 1000;
@@ -158,19 +162,31 @@ sqlplus / as sysdba <<'EOL'
 	commit;
 	exit
 	EOI
-=======
-  select * from c\$pinpoint.reg_data fetch next 1 rows only;
   exit
->>>>>>> parent of 3036307 (re-index dotmatics pinpoint and download lib file)
 EOL
 EOF
+
+sed -i '/^[^sqlplus]/d; s/\r//g; s/^[ \t]*//;s/[ \t]*$//; s/\$/\\$/g' "$TMP_HOME/$FILE_NAME"
+
+# read sql statements from file (re-index pinpoint)
+while IFS=',' read -r line; do
+	IFS=',' read -r -a commands <<<"$line"
+	if [[ -n "$line" ]]; then
+		sudo -i -u oracle bash <<EOF
+${commands[0]} <<EOL
+${commands[1]}
+${commands[2]}
+exit
+EOL
+EOF
+	fi
+done <$FILE_NAME
 
 # start listener
 sudo -i -u oracle bash <<<'lsnrctl start'
 
 # start cron service
 sudo systemctl start crond.service
-mkdir -p $BACKUP/bkpscripts
 # echo "0 5 * * 0-5 /orabackup/bkpscripts/full_backup.sh" >>cron_full_backup
 # crontab cron_full_backup
 
