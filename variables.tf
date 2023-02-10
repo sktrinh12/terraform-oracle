@@ -14,7 +14,17 @@ variable "awsprops" {
   }
 }
 
+variable "bkpfile" {
+    type = string
+    default = "full_backup.sh"
+}
+
 variable "shfile" {
-    type = list 
-    default = ["oracle_install.sh", "test.sh"]
+    type = string 
+    default = "oracle_install.sh"
+}
+
+variable "license" {
+    type = string
+    default = "FILL_IN_AT_RUNTIME"
 }
