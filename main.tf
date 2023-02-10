@@ -68,6 +68,34 @@ resource "aws_iam_role_policy" "ec2_policy" {
 EOF
 }
 
+# locals {
+#   disks = zip(var.disk_names, var.disk_sizes, var.disk_iops)
+# }
+# resource "aws_volume_attachment" "or_ebs_att_3" {
+#   device_name = "/dev/sdc"
+#   volume_id   = aws_ebs_volume.orebs.id
+#   instance_id = aws_instance.ortest.id
+# }
+#
+# resource "aws_volume_attachment" "or_ebs_att" {
+#    count         = length(var.disk_names)
+#    device_name = "${var.disk_names[count.index]}"
+#    volume_id   = "${element(aws_ebs_volume.orebs.*.id, count.index)}"
+#    instance_id = "${var.instance_id}"
+# }
+#
+#resource "aws_ebs_volume" "orebs" {
+  # count = length(var.disk_names)
+  # availability_zone = "us-west-2"
+  # size              = var.disks[count.index][1]
+  # type = "gp3"
+  # iops = local.disks[count.index][2]
+  #
+  # tags = {
+  # Name = "or_ebs_${count.index}"
+  # }
+# }
+
 # EC2 resource
 resource "aws_instance" "ortest" {
   count         = var.awsprops.count
@@ -88,17 +116,21 @@ resource "aws_instance" "ortest" {
   # on the local system you are executing terraform
   # from.  The destination is on the new AWS instance.
   provisioner "file" {
-    source      = "./config-files/${var.shfile[count.index]}"
-    destination = "/home/ec2-user/${var.shfile[count.index]}"
+    source      = "./config-files/${var.shfile}"
+    destination = "/home/ec2-user/${var.shfile}"
+  }
+
+  provisioner "file" {
+    source      = "./config-files/${var.bkpfile}"
+    destination = "/home/ec2-user/${var.bkpfile}"
   }
 
   # Change permissions on bash script and execute
   provisioner "remote-exec" {
     inline = [
-      "sudo chmod +x /home/ec2-user/${var.shfile[count.index]}",
-      "sudo /home/ec2-user/${var.shfile[count.index]}",
+      "sudo chmod +x /home/ec2-user/${var.shfile}",
+      "sudo /home/ec2-user/${var.shfile} ${var.license}",
     ]
-    on_failure = continue
   }
 
   # Establishes connection to be used by all
