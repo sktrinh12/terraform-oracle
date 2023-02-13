@@ -44,6 +44,10 @@ The script performs the following steps to install and configure Oracle:
 - Installs Oracle 19c as the Oracle user using the silent install script.
 - Configures and changes the ownership of Oracle after installation.
 
+#### Schematic of RMAN backup/recovery on EC2
+
+![oracle_ec2](aws_ec2_oracle_recovery_backup.svg)
+
 #### Conclusion
 
 This Terraform script creates a development environment in AWS, including an EC2 instance with necessary IAM policies and roles, and provisioning for a bash script. The resulting environment is ready for use for development activities with AWS services. The `install_oracle.sh` script automates the installation and configuration of Oracle 19c on a Linux machine, making it easier and faster to set up the environment.
