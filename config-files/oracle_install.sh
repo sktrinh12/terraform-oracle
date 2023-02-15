@@ -1,16 +1,23 @@
 #!/bin/bash
 
+# ORACLE_HOME=/opt/oracle/product/19c/db_home1
 ORACLE_HOME="/u01/app/oracle/product/19.3/db_home"
 TMP_HOME=/home/oracle
-BACKUP=/orabackup/ORA_DM
+# BACKUP=/orabkp
+BACKUP=/orabackup
 ORA_DATA=/oradata/ORA_DM
 S3B=DevOps/rman_backups
 AWS=/usr/local/bin/aws
 PINPOINT='C\\\$PINPOINT'
 FILE_NAME=reindex.lst
+# requires two arguments,
+# 1) license string
+# 2) newest or recovery date (folder name in s3)
 LICENSE="$1" # the first argument passed from tf apply
+RECOVERY_DATE="$2"
 
 echo $LICENSE
+echo $RECOVERY_DATE
 
 # set -x enables a mode of the shell where all executed commands are printed to the terminal
 set -x
@@ -47,7 +54,7 @@ fi
 export ORACLE_BASE=/u01/app/oracle
 export ORACLE_HOME=${ORACLE_HOME}
 export ORACLE_SID=orcl_dm
-export BACKUP=${BACKUP}
+export BACKUP=${BACKUP}/ORA_DM
 export LD_LIBRARY_PATH=\$ORACLE_HOME/lib:/lib:/usr/lib
 export CLASSPATH=\$ORACLE_HOME/jlib:\$ORACLE_HOME/rdbms/jlib
 export NLS_LANG=american_america.al32utf8
@@ -90,38 +97,43 @@ mv $TMP_HOME/libpinpoint_lnx_64_2.4.so $ORACLE_HOME/lib
 # add port rule to firewall
 firewall-cmd --zone=public --add-port=1521/tcp --permanent
 firewall-cmd --reload
-mkdir -p $BACKUP/autobackup \
-	$BACKUP/bkpscripts \
+mkdir -p $BACKUP/orabackup/ORA_DM/autobackup \
+	$BACKUP/ORA_DM/archivelogs \
+	$BACKUP/ORA_DM/bkpscripts \
+	$BACKUP/recv_area/ORA_DM/onlinelog \
 	$ORA_DATA/controlfile \
 	$ORA_DATA/datafile \
+	$ORA_DATA/onlinelog \
 	$ORACLE_HOME/admin/ora_dm/adump
 chown -R oracle:oinstall $ORACLE_HOME/admin/ora_dm/adump
 chown -R oracle:oinstall $BACKUP
 chown -R oracle:oinstall $ORA_DATA
 
-# use aws cli to get latest backup directory on s3
-newest_file=$($AWS s3api list-objects-v2 \
-	--bucket fount-data \
-	--prefix $S3B/ \
-	--query 'sort_by(Contents, &LastModified)[-1]' | jq -r '.Key')
-echo $newest_file
-echo
-
-newest_folder=$(echo $newest_file | sed -E "s|$S3B||g" | awk -F/ '{print FS $2}')
-echo $newest_folder # contains '/' already
-echo
+if [ $RECOVERY_DATE == "newest" ]; then
+	# use aws cli to get latest backup directory on s3
+	newest_file=$($AWS s3api list-objects-v2 \
+		--bucket fount-data \
+		--prefix $S3B/ \
+		--query 'sort_by(Contents, &LastModified)[-1]' | jq -r '.Key')
+	newest_folder=$(echo $newest_file | sed -E "s|$S3B||g" | awk -F/ '{print FS $2}')
+	echo $newest_folder # contains '/' already
+	echo
+else
+	newest_folder="/${RECOVERY_DATE}"
+fi
 
 # download newest backup
-$AWS s3 cp s3://fount-data/$S3B$newest_folder $BACKUP/autobackup --recursive --quiet
+$AWS s3 cp s3://fount-data/$S3B$newest_folder $BACKUP/ORA_DM/autobackup --recursive --quiet
 
 # move full backup cron job file
 sudo chown oracle:oinstall /home/ec2-user/full_backup.sh
-mv /home/ec2-user/full_backup.sh $BACKUP/bkpscripts
+sudo chmod +x /home/ec2-user/full_backup.sh
+mv /home/ec2-user/full_backup.sh $BACKUP/ORA_DM/bkpscripts
 
 # startup
 sudo -i -u oracle bash <<EOF
 sqlplus / as sysdba <<EOL
-  startup NOMOUNT pfile='${BACKUP}/autobackup/pfileorcl_dm.ora';
+  startup NOMOUNT pfile='${BACKUP}/ORA_DM/autobackup/pfileorcl_dm.ora';
   exit
 EOL
 EOF
@@ -133,7 +145,7 @@ rman target / <<EOL
   alter database mount;
   crosscheck backup;
   delete noprompt expired backup;
-  catalog start with '${BACKUP}/autobackup' noprompt;
+  catalog start with '${BACKUP}/ORA_DM/autobackup' noprompt;
   crosscheck archivelog all;
   change archivelog all validate;
   restore database;
@@ -143,7 +155,7 @@ EOL
 EOF 
  
 
-# alter db & test
+# alter db & generate reindex cmds 
 sudo -i -u oracle bash <<EOF
 sqlplus / as sysdba <<EOL
   alter database open resetlogs;
@@ -166,7 +178,13 @@ sqlplus / as sysdba <<EOL
 EOL
 EOF
 
-sed -i '/^[^sqlplus]/d; s/\r//g; s/^[ \t]*//;s/[ \t]*$//; s/\$/\\$/g' "$TMP_HOME/$FILE_NAME"
+# remove sqlplus prompt from spool and add escape '$'
+sed -i '/^[^sqlplus]/d; s/\r//g; s/^[ \t]*//;s/[ \t]*$//; s/\$/\\$/g' "${TMP_HOME}/${FILE_NAME}"
+
+# start listener
+sudo -i -u oracle bash <<<'lsnrctl start'
+
+sleep 90
 
 # read sql statements from file (re-index pinpoint)
 while IFS=',' read -r line; do
@@ -180,10 +198,7 @@ exit
 EOL
 EOF
 	fi
-done <$FILE_NAME
-
-# start listener
-sudo -i -u oracle bash <<<'lsnrctl start'
+done <"$TMP_HOME/$FILE_NAME"
 
 # start cron service
 sudo systemctl start crond.service
