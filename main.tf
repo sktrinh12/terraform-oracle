@@ -68,31 +68,23 @@ resource "aws_iam_role_policy" "ec2_policy" {
 EOF
 }
 
-# locals {
-#   disks = zip(var.disk_names, var.disk_sizes, var.disk_iops)
-# }
-# resource "aws_volume_attachment" "or_ebs_att_3" {
-#   device_name = "/dev/sdc"
-#   volume_id   = aws_ebs_volume.orebs.id
-#   instance_id = aws_instance.ortest.id
-# }
-#
 # resource "aws_volume_attachment" "or_ebs_att" {
 #    count         = length(var.disk_names)
 #    device_name = "${var.disk_names[count.index]}"
 #    volume_id   = "${element(aws_ebs_volume.orebs.*.id, count.index)}"
-#    instance_id = "${var.instance_id}"
+#    instance_id = "${element(aws_instance.ortest.*.id, count.index)}"
 # }
 #
 #resource "aws_ebs_volume" "orebs" {
-  # count = length(var.disk_names)
+  # count             = length(var.disk_names)
   # availability_zone = "us-west-2"
-  # size              = var.disks[count.index][1]
-  # type = "gp3"
-  # iops = local.disks[count.index][2]
+  # size              = var.disk_size[count.index]
+  # type              = "gp3"
+  # iops              = var.disk_iops[count.index]
   #
   # tags = {
   # Name = "or_ebs_${count.index}"
+  # EC2_Instance = "oracle_ec2_${count.index +1}"
   # }
 # }
 
@@ -129,7 +121,7 @@ resource "aws_instance" "ortest" {
   provisioner "remote-exec" {
     inline = [
       "sudo chmod +x /home/ec2-user/${var.shfile}",
-      "sudo /home/ec2-user/${var.shfile} ${var.license}",
+      "sudo /home/ec2-user/${var.shfile} ${var.license} ${var.recovery_date}",
     ]
   }
 
