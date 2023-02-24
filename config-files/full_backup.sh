@@ -19,21 +19,22 @@ fullbackup() {
     tag 'ORA_DM' database;
     backup device type disk tag 'ORA_DM'
     format '${BACKUP}/autobackup/full_dm_archivelog_\%d_\%T.bkp'
-    archivelog not backed up delete all input;
+    archivelog all not backed up delete all input;
     delete noprompt obsolete device type disk;
   }
   exit
-  EOF
+EOF
 }
 
 pfile() {
 	rm -rf $BACKUP/autobackup/*
-	sqlplus / as sysdba <<EOF > "pfile_output"
+	sqlplus / as sysdba <<EOF >"pfile_output"
 		create pfile='${BACKUP}/autobackup/pfileorcl_dm.ora' from memory;
-	EOF
+EOF
 	if grep -q "ORA-" "pfile_output" || grep -q "SP2-" "pfile_output"; then
-				return 1
-	else return 0
+		return 1
+	else
+		return 0
 	fi
 }
 
