@@ -9,21 +9,21 @@ AWS=/usr/local/bin/aws
 
 fullbackup() {
 	rman log="${BACKUP}/bkpscripts/b_${DATE}_full_bkp.log" <<EOF
-connect target /
-set echo on;
-run
-{
-backup incremental level 0 
-cumulative device type disk 
-format '${BACKUP}/autobackup/full_dm_%d_%T.bkp'
-tag 'ORA_DM' database;
-backup device type disk tag 'ORA_DM'
-format '${BACKUP}/autobackup/full_dm_archivelog_%d_%T.bkp'
-archivelog not backed up delete all input;
-delete noprompt obsolete device type disk;
-}
-exit
-EOF
+  connect target /
+  set echo on;
+  run
+  {
+    backup incremental level 0
+    cumulative device type disk
+    format '${BACKUP}/autobackup/full_dm_\%d_\%T.bkp'
+    tag 'ORA_DM' database;
+    backup device type disk tag 'ORA_DM'
+    format '${BACKUP}/autobackup/full_dm_archivelog_\%d_\%T.bkp'
+    archivelog not backed up delete all input;
+    delete noprompt obsolete device type disk;
+  }
+  exit
+  EOF
 }
 
 pfile() {
@@ -36,15 +36,6 @@ pfile() {
 	else return 0
 	fi
 }
-
-# pfile_try() {
-# 	sqlplus / as sysdba <<EOF
-#   create pfile='${BACKUP}/autobackup/pfileorcl_dm.ora' from memory;
-# 	shutdown immediate;
-# 	startup pfile='${ORACLE_HOME}/dbs/initorcl_dm.ora';
-# 	create spfile from pfile;
-# 	EOF
-# }
 
 uploadbackup() {
 	check=$($AWS s3api list-objects-v2 --bucket fount-data --prefix "${S3B}/${DATE}" --query 'Contents[]')
