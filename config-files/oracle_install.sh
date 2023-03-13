@@ -1,15 +1,16 @@
 #!/bin/bash
 
-# ORACLE_HOME=/opt/oracle/product/19c/db_home1
-ORACLE_HOME="/u01/app/oracle/product/19.3/db_home"
+ORACLE_HOME=/opt/oracle/product/19c/db_home1
+# ORACLE_HOME="/u01/app/oracle/product/19.3/db_home"
 TMP_HOME=/home/oracle
-# BACKUP=/orabkp
-BACKUP=/orabackup
+BACKUP=/orabkp
+# BACKUP=/orabackup
 ORA_DATA=/oradata/ORA_DM
 S3B=DevOps/rman_backups
 AWS=/usr/local/bin/aws
 PINPOINT='C\\\$PINPOINT'
 FILE_NAME=reindex.lst
+ORACLE_BASE=/opt/oracle
 # requires two arguments,
 # 1) license string
 # 2) newest or recovery date (folder name in s3)
@@ -39,8 +40,8 @@ sudo ./aws/install
 eval "echo \"oracle  ALL=(ALL) NOPASSWD:ALL\" | tee \"/etc/sudoers.d/oracle\""
 sudo rm awscli-exe-linux-x86_64.zip
 mkdir -p $ORACLE_HOME
-chown -R oracle:oinstall /u01
-chmod -R 775 /u01
+chown -R oracle:oinstall /opt
+chmod -R 775 /opt
 rm -f $TMP_HOME/.bash_profile
 
 # create bash_profile
@@ -51,10 +52,10 @@ if [ -f ~/.bashrc ]; then
         . ~/.bashrc
 fi
 # User specific environment and startup programs
-export ORACLE_BASE=/u01/app/oracle
+export ORACLE_BASE=${ORACLE_BASE}
 export ORACLE_HOME=${ORACLE_HOME}
 export ORACLE_SID=orcl_dm
-export BACKUP=${BACKUP}/ORA_DM
+export BACKUP=${BACKUP}/orabackup/ORA_DM
 export LD_LIBRARY_PATH=\$ORACLE_HOME/lib:/lib:/usr/lib
 export CLASSPATH=\$ORACLE_HOME/jlib:\$ORACLE_HOME/rdbms/jlib
 export NLS_LANG=american_america.al32utf8
@@ -90,24 +91,13 @@ EOF
 
 # configure and change ownership
 echo "done running as oracle user"
-sudo /u01/app/oraInventory/orainstRoot.sh
+sudo $ORACLE_BASE/oraInventory/orainstRoot.sh
 sudo $ORACLE_HOME/root.sh
 mv $TMP_HOME/*.ora $ORACLE_HOME/network/admin
 mv $TMP_HOME/libpinpoint_lnx_64_2.4.so $ORACLE_HOME/lib
 # add port rule to firewall
 firewall-cmd --zone=public --add-port=1521/tcp --permanent
 firewall-cmd --reload
-mkdir -p $BACKUP/orabackup/ORA_DM/autobackup \
-	$BACKUP/ORA_DM/archivelogs \
-	$BACKUP/ORA_DM/bkpscripts \
-	$BACKUP/recv_area/ORA_DM/onlinelog \
-	$ORA_DATA/controlfile \
-	$ORA_DATA/datafile \
-	$ORA_DATA/onlinelog \
-	$ORACLE_HOME/admin/ora_dm/adump
-chown -R oracle:oinstall $ORACLE_HOME/admin/ora_dm/adump
-chown -R oracle:oinstall $BACKUP
-chown -R oracle:oinstall $ORA_DATA
 
 if [ $RECOVERY_DATE == "newest" ]; then
 	# use aws cli to get latest backup directory on s3
@@ -122,18 +112,30 @@ else
 	newest_folder="/${RECOVERY_DATE}"
 fi
 
+mkdir -p $BACKUP/orabackup/ORA_DM/autobackup$newest_folder \
+	$BACKUP/archivelogs \
+	$BACKUP/recv_area/ORA_DM/onlinelog \
+	$ORA_DATA/controlfile \
+	$ORA_DATA/datafile \
+	$ORA_DATA/onlinelog \
+	$ORACLE_BASE/admin/ora_dm/adump
+
+chown -R oracle:oinstall $ORACLE_BASE
+chown -R oracle:oinstall $BACKUP
+chown -R oracle:oinstall $ORA_DATA
+
 # download newest backup
-$AWS s3 cp s3://fount-data/$S3B$newest_folder $BACKUP/ORA_DM/autobackup --recursive --quiet
+$AWS s3 cp s3://fount-data/$S3B$newest_folder $BACKUP/orabackup/ORA_DM/autobackup --recursive --quiet
 
 # move full backup cron job file
 sudo chown oracle:oinstall /home/ec2-user/full_backup.sh
 sudo chmod +x /home/ec2-user/full_backup.sh
-mv /home/ec2-user/full_backup.sh $BACKUP/ORA_DM/bkpscripts
+mv /home/ec2-user/full_backup.sh $BACKUP/orabackup/ORA_DM/bkpscripts
 
 # startup
 sudo -i -u oracle bash <<EOF
 sqlplus / as sysdba <<EOL
-  startup NOMOUNT pfile='${BACKUP}/ORA_DM/autobackup/pfileorcl_dm.ora';
+  startup NOMOUNT pfile='${BACKUP}/orabackup/ORA_DM/autobackup/pfileorcl_dm.ora';
   exit
 EOL
 EOF
@@ -145,7 +147,7 @@ rman target / <<EOL
   alter database mount;
   crosscheck backup;
   delete noprompt expired backup;
-  catalog start with '${BACKUP}/ORA_DM/autobackup' noprompt;
+  catalog start with '${BACKUP}/orabackup/ORA_DM/autobackup' noprompt;
   crosscheck archivelog all;
   change archivelog all validate;
   restore database;
