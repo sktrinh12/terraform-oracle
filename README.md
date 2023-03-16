@@ -36,6 +36,7 @@ The following variables are used in the script:
 
 - `terraform plan` to see preview
 - `terraform apply -var "license=$(cat $DM_LICENSE_FILE)" -var "recovery_date=$DATE_YYYY_MON_DAY"`
+- `terraform destroy` to destroy all AWS resources
 
 #### Installation
 
