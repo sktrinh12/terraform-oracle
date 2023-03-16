@@ -32,6 +32,11 @@ The following variables are used in the script:
 - `FILE_NAME` - Name of the reindex file
 - `LICENSE` - Oracle license code
 
+#### CLI commands:
+
+- `terraform plan` to see preview
+- `terraform apply -var "license=$(cat $DM_LICENSE_FILE)" -var "recovery_date=$DATE_YYYY_MON_DAY"`
+
 #### Installation
 
 The script performs the following steps to install and configure Oracle:
