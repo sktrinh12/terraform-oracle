@@ -132,7 +132,7 @@ resource "aws_instance" "ortest" {
     agent = true
     type  = "ssh"
     user  = "ec2-user"
-    private_key = file(pathexpand("~/.ssh/eks-apps.pem"))
+    private_key = file(pathexpand("~/.ssh/dotmaticsdb.pem"))
   }
   
   vpc_security_group_ids = [
