@@ -15,21 +15,42 @@ variable "awsprops" {
 }
 
 variable "bkpfile" {
-    type = string
-    default = "full_backup.sh"
+  type = string
+  default = "full_backup.sh"
 }
 
 variable "shfile" {
-    type = string 
-    default = "oracle_install.sh"
+  type = string 
+  default = "oracle_install.sh"
 }
 
 variable "license" {
-    type = string
-    default = "FILL_IN_AT_RUNTIME"
+  type = string
+  default = "FILL_IN_AT_RUNTIME"
 }
 
 variable "recovery_date" {
-    type = string
-    default = "newest"
+  type = string
+  default = "newest"
+}
+
+variable "emails" {
+  type = string
+  default = "spencer.trinh@kinnate.com"
+}
+
+
+variable "disk_names" {
+  type = list(string)
+  default = ["/dev/xvda1", "/dev/xvdb", "/dev/xvdc"]
+}
+
+variable "disk_sizes" {
+  type = list(number)
+  default = [50, 120, 250]
+}
+
+variable "disk_iops" {
+  type = list(number)
+  default = [100, 200, 300]
 }
