@@ -11,17 +11,22 @@ AWS=/usr/local/bin/aws
 PINPOINT='C\\\$PINPOINT'
 FILE_NAME=reindex.lst
 ORACLE_BASE=/opt/oracle
+HOME_AWS=$HOME_AWS
+IP_ADDR=$(cat $HOME_AWS/ip_addr)
 # requires two arguments,
 # 1) license string
 # 2) newest or recovery date (folder name in s3)
 LICENSE="$1" # the first argument passed from tf apply
 RECOVERY_DATE="$2"
+SNS_ARN="$3"
 
 echo $LICENSE
 echo $RECOVERY_DATE
 
 # set -x enables a mode of the shell where all executed commands are printed to the terminal
-set -x
+set -ex
+
+trap '/usr/local/bin/aws sns publish --topic-arn $SNS_ARN --message "[$IP_ADDR | $HOSTNAME] Error occurred while running the script: $BASH_COMMAND"' ERR
 
 # install required packages
 sudo yum update -y
@@ -128,9 +133,9 @@ chown -R oracle:oinstall $ORA_DATA
 $AWS s3 cp s3://fount-data/$S3B$newest_folder $BACKUP/orabackup/ORA_DM/autobackup --recursive --quiet
 
 # move full backup cron job file
-sudo chown oracle:oinstall /home/ec2-user/full_backup.sh
-sudo chmod +x /home/ec2-user/full_backup.sh
-mv /home/ec2-user/full_backup.sh $BACKUP/orabackup/ORA_DM/bkpscripts
+sudo chown oracle:oinstall $HOME_AWS/full_backup.sh
+sudo chmod +x $HOME_AWS/full_backup.sh
+mv $HOME_AWS/full_backup.sh $BACKUP/orabackup/ORA_DM/bkpscripts
 
 # startup
 sudo -i -u oracle bash <<EOF
@@ -208,3 +213,4 @@ sudo systemctl start crond.service
 # crontab cron_full_backup
 
 echo "complete!"
+/usr/local/bin/aws sns publish --topic-arn $SNS_ARN --message "[$IP_ADDR | $HOSTNAME] Sucess restoring database!"
