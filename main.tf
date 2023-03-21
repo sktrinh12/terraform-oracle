@@ -62,39 +62,65 @@ resource "aws_iam_role_policy" "ec2_policy" {
         "arn:aws:s3:::fount-data/DevOps",
         "arn:aws:s3:::fount-data/DevOps/*"
        ]
+  },
+  {
+      "Effect": "Allow",
+      "Action": [
+        "sns:Publish"
+      ],
+      "Resource": "*"
   }
   ]
 }
 EOF
 }
 
-# resource "aws_volume_attachment" "or_ebs_att" {
-#    count         = length(var.disk_names)
-#    device_name = "${var.disk_names[count.index]}"
-#    volume_id   = "${element(aws_ebs_volume.orebs.*.id, count.index)}"
-#    instance_id = "${element(aws_instance.ortest.*.id, count.index)}"
-# }
-#
-#resource "aws_ebs_volume" "orebs" {
-  # count             = length(var.disk_names)
-  # availability_zone = "us-west-2"
-  # size              = var.disk_size[count.index]
-  # type              = "gp3"
-  # iops              = var.disk_iops[count.index]
-  #
-  # tags = {
-  # Name = "or_ebs_${count.index}"
-  # EC2_Instance = "oracle_ec2_${count.index +1}"
-  # }
+# resource "aws_sns_topic" "oracle_sns" {
+#   name = "or-sns-topic"
 # }
 
+# resource "aws_sns_topic_subscription" "or_sns_email" {
+#   topic_arn = aws_sns_topic.oracle_sns.arn
+#   protocol  = "email"
+#   endpoint  = var.emails
+# }
+
+#  resource "aws_volume_attachment" "or_ebs_att" {
+#     count         = length(var.disk_names)
+#     device_name = "${var.disk_names[count.index]}"
+#     volume_id   = "${element(aws_ebs_volume.orebs.*.id, count.index)}"
+#     instance_id = "${element(aws_instance.ortest.*.id, count.index)}"
+#  }
+
+# resource "aws_ebs_volume" "orebs" {
+#    count             = length(var.disk_names)
+#    availability_zone = "us-west-2a"
+#    size              = var.disk_sizes[count.index]
+#    type              = "gp3"
+#    iops              = var.disk_iops[count.index]
+  
+#    tags = {
+#    Name = "or_ebs_${count.index}"
+#    EC2_Instance = "oracle_ec2_${count.index +1}"
+#    }
+#  }
+
 # EC2 resource
+  # depends_on    = [aws_ebs_volume.orebs]
 resource "aws_instance" "ortest" {
   count         = var.awsprops.count
   ami           = var.awsprops.ami
   instance_type = var.awsprops.itype
   subnet_id     = var.awsprops.subnet 
   key_name      = var.awsprops.keyname
+
+  lifecycle {
+    # Create new EBS volumes for new instances only
+    create_before_destroy = true
+    ignore_changes = [
+      root_block_device,
+    ]
+  }
 
   root_block_device {
     volume_size = var.awsprops.volume_size
@@ -120,9 +146,12 @@ resource "aws_instance" "ortest" {
   # Change permissions on bash script and execute
   provisioner "remote-exec" {
     inline = [
-      "sudo chmod +x /home/ec2-user/${var.shfile}",
-      "sudo /home/ec2-user/${var.shfile} ${var.license} ${var.recovery_date}",
+      "echo $HOME",
+      "sudo chmod +x $HOME/${var.shfile}",
+      "echo ${self.private_ip} > $HOME/ip_addr",
+      "sudo $HOME/${var.shfile} ${var.license} ${var.recovery_date} ${var.sns_topic_arn}",
     ]
+    on_failure = fail 
   }
 
   # Establishes connection to be used by all
