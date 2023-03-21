@@ -1,7 +1,7 @@
 variable "awsprops" {
     type = map
     default = {
-    count = 1
+    count = 2
     region = "us-west-2"
     ami = "ami-0bf3b3e2db4302789" // OL7.9-x86_64-HVM-2020-12-07
     vpc = "vpc-031ebba25c9df51eb"
@@ -34,11 +34,10 @@ variable "recovery_date" {
   default = "newest"
 }
 
-variable "emails" {
-  type = string
-  default = "spencer.trinh@kinnate.com"
+variable "sns_topic_arn" {
+    type = string
+    default = "arn:aws:sns:us-west-2:352353521492:DotmaticsBackups"
 }
-
 
 variable "disk_names" {
   type = list(string)
