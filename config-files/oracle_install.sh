@@ -214,4 +214,4 @@ sudo systemctl start crond.service
 # crontab cron_full_backup
 
 echo "complete!"
-/usr/local/bin/aws sns publish --topic-arn $SNS_ARN --message "[$IP_ADDR | $HOSTNAME] Sucess restoring database!"
+/usr/local/bin/aws sns publish --topic-arn $SNS_ARN --message "[$IP_ADDR | $HOSTNAME] Success restoring database!"
