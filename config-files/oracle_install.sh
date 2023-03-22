@@ -11,7 +11,7 @@ AWS=/usr/local/bin/aws
 PINPOINT='C\\\$PINPOINT'
 FILE_NAME=reindex.lst
 ORACLE_BASE=/opt/oracle
-HOME_AWS=$HOME_AWS
+HOME_AWS=/home/ec2-user
 IP_ADDR=$(cat $HOME_AWS/ip_addr)
 # requires two arguments,
 # 1) license string
@@ -22,6 +22,7 @@ SNS_ARN="$3"
 
 echo $LICENSE
 echo $RECOVERY_DATE
+echo $SNS_ARN
 
 # set -x enables a mode of the shell where all executed commands are printed to the terminal
 set -ex
@@ -170,7 +171,7 @@ sqlplus / as sysdba <<EOL
 	SET linesize 1000;
 	SET pagesize 1000;
 	spool '$FILE_NAME';
-	select 'sqlplus -L ' ||lower(owner) ||'/' ||CASE WHEN REGEXP_LIKE(owner, 'pinpoint', 'i') THEN 'pinpoint' WHEN REGEXP_LIKE(owner, 'gateway', 'i') THEN 'dataowner' END ||'@${HOSTNAME}'||':1521/ora_dm'||',drop index '||i.index_name||' force;,create index '||i.index_name||' on '||i.table_name||'('||c.column_name||') indextype is ${PINPOINT}.chm;' from all_indexes i, all_ind_columns c where i.index_name = c.index_name and i.ITYP_OWNER = '${PINPOINT}' and i.ITYP_NAME = 'CHM' ORDER BY OWNER;
+	select 'sqlplus -L ' ||lower(owner) ||'/' ||CASE WHEN REGEXP_LIKE(owner, 'pinpoint', 'i') THEN 'pinpoint' WHEN REGEXP_LIKE(owner, 'gateway', 'i') THEN 'dataowner' WHEN REGEXP_LIKE(owner, 'ds3_userdata', 'i') THEN 'ds3_userdata' END ||'@${HOSTNAME}'||':1521/ora_dm'||',drop index '||i.index_name||' force;,create index '||i.index_name||' on '||i.table_name||'('||c.column_name||') indextype is ${PINPOINT}.chm;' from all_indexes i, all_ind_columns c where i.index_name = c.index_name and i.ITYP_OWNER = '${PINPOINT}' and i.ITYP_NAME = 'CHM' ORDER BY OWNER;
 	spool off;
 	exit
 	EOL
