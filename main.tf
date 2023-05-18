@@ -20,8 +20,15 @@ EOF
 
   tags = {
     Application = "Oracle"
-    Created     = "TF"
+    Name        = "oracle_db"
+    Created_by     = "TF"
     Environment = "Development"
+    Retention	= "DO NOT DELETE - DEVELOPMENT SERVER"
+    Backup	= "2Days"
+    Function = "Discovery"
+    OS	= "Linux" 
+    Owner	= "Informatics"
+    Application_Version = "2022.3"
   }
 }
 
@@ -75,58 +82,48 @@ resource "aws_iam_role_policy" "ec2_policy" {
 EOF
 }
 
-# resource "aws_sns_topic" "oracle_sns" {
-#   name = "or-sns-topic"
-# }
+resource "aws_volume_attachment" "or_ebs_att" {
+    count = length(var.disk_names)
+    device_name = "${var.disk_names[count.index]}"
+    volume_id   = "${element(aws_ebs_volume.orebs.*.id, count.index)}"
+    instance_id = "${element(aws_instance.ortest.*.id, count.index)}"
+}
 
-# resource "aws_sns_topic_subscription" "or_sns_email" {
-#   topic_arn = aws_sns_topic.oracle_sns.arn
-#   protocol  = "email"
-#   endpoint  = var.emails
-# }
-
-#  resource "aws_volume_attachment" "or_ebs_att" {
-#     count         = length(var.disk_names)
-#     device_name = "${var.disk_names[count.index]}"
-#     volume_id   = "${element(aws_ebs_volume.orebs.*.id, count.index)}"
-#     instance_id = "${element(aws_instance.ortest.*.id, count.index)}"
-#  }
-
-# resource "aws_ebs_volume" "orebs" {
-#    count             = length(var.disk_names)
-#    availability_zone = "us-west-2a"
-#    size              = var.disk_sizes[count.index]
-#    type              = "gp3"
-#    iops              = var.disk_iops[count.index]
+resource "aws_ebs_volume" "orebs" {
+   count             = length(var.disk_names)
+   availability_zone = "${var.awsprops.region}b"
+   size              = var.disk_sizes[count.index]
+   type              = var.awsprops.volume_type
+   iops              = var.disk_iops[count.index]
   
-#    tags = {
-#    Name = "or_ebs_${count.index}"
-#    EC2_Instance = "oracle_ec2_${count.index +1}"
-#    }
-#  }
+   tags = {
+    Application = "Oracle"
+    Name        = "oracle_db_ebs_${count.index +1}"
+    Created_by     = "TF"
+    Environment = "Development"
+    Retention	= "DO NOT DELETE - DEVELOPMENT SERVER"
+    Backup	= "2Days"
+    Function = "Discovery"
+    OS	= "Linux" 
+    Owner	= "Informatics"
+    Application_Version = "2022.3"
+   }
+ }
 
 # EC2 resource
-  # depends_on    = [aws_ebs_volume.orebs]
 resource "aws_instance" "ortest" {
   count         = var.awsprops.count
   ami           = var.awsprops.ami
   instance_type = var.awsprops.itype
   subnet_id     = var.awsprops.subnet 
   key_name      = var.awsprops.keyname
-
-  lifecycle {
-    # Create new EBS volumes for new instances only
-    create_before_destroy = true
-    ignore_changes = [
-      root_block_device,
-    ]
-  }
+  depends_on    = [aws_ebs_volume.orebs]
 
   root_block_device {
     volume_size = var.awsprops.volume_size
     volume_type = var.awsprops.volume_type
     delete_on_termination = true
-    iops = 150
+    iops = element(var.disk_iops, 1)
   }
 
   # Copy in the bash script we want to execute.
@@ -143,19 +140,6 @@ resource "aws_instance" "ortest" {
     destination = "/home/ec2-user/${var.bkpfile}"
   }
 
-  # Change permissions on bash script and execute
-  provisioner "remote-exec" {
-    inline = [
-      "echo $HOME",
-      "sudo chmod +x $HOME/${var.shfile}",
-      "echo ${self.private_ip} > $HOME/ip_addr",
-      "sudo $HOME/${var.shfile} ${var.license} ${var.recovery_date} ${var.sns_topic_arn}",
-    ]
-    on_failure = fail 
-  }
-
-  # Establishes connection to be used by all
-  # generic remote provisioners (i.e. file/remote-exec)
   connection {
     host  = self.private_ip
     agent = true
@@ -172,14 +156,47 @@ resource "aws_instance" "ortest" {
 
   tags = {
     Application = "Oracle"
-    Name        = "oracle_ec2_${count.index +1}"
-    Created     = "TF"
+    Name        = "oracle_db_ec2_${count.index +1}"
+    Created_by     = "TF"
     Environment = "Development"
+    Retention	= "DO NOT DELETE - DEVELOPMENT SERVER"
+    Backup	= "2Days"
+    Function = "Discovery"
+    OS	= "Linux" 
+    Owner	= "Informatics"
+    Application_Version = "2022.3"
   }
 
   monitoring              = true
   disable_api_termination = false
   ebs_optimized           = true
+}
+
+
+resource "null_resource" "oracle_script" {
+  count         = var.awsprops.count
+  provisioner "remote-exec" {
+    inline = [
+      "echo $HOME",
+      "sudo chmod +x $HOME/${var.shfile}",
+      "echo ${aws_instance.ortest[count.index].private_ip} > $HOME/ip_addr",
+      "sudo $HOME/${var.shfile} ${var.license} ${var.recovery_date} ${var.sns_topic_arn}",
+    ]
+    on_failure = fail 
+  }
+
+  # Establishes connection to be used by all
+  # generic remote provisioners (i.e. file/remote-exec)
+  connection {
+    host  = aws_instance.ortest[count.index].private_ip
+    agent = true
+    type  = "ssh"
+    user  = "ec2-user"
+    private_key = file(pathexpand("~/.ssh/dotmaticsdb.pem"))
+  }
+  depends_on = [
+    aws_volume_attachment.or_ebs_att
+  ]
 }
 
 module "security_group" {
