@@ -27,6 +27,17 @@ echo $SNS_ARN
 # set -x enables a mode of the shell where all executed commands are printed to the terminal
 set -ex
 
+# mount both ebs volumes
+echo "starting ebs mount script ..."
+mkfs -t ext4 /dev/xvdb
+mkfs -t ext4 /dev/xvdc
+mkdir /oradata
+mkdir /orabkp
+mount /dev/xvdb /oradata
+echo "/dev/xvdb /oradata ext4 defaults,nofail 0 2" >>/etc/fstab
+mount /dev/xvdc /orabkp
+echo "/dev/xvdc /orabkp ext4 defaults,nofail 0 2" >>/etc/fstab
+
 trap '/usr/local/bin/aws sns publish --topic-arn $SNS_ARN --message "[$IP_ADDR | $HOSTNAME] Error occurred while running the script: $BASH_COMMAND"' ERR
 
 # install required packages
