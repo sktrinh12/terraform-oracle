@@ -19,16 +19,16 @@ resource "aws_iam_role" "ec2_role_ortest" {
 EOF
 
   tags = {
-    Application = "Oracle"
-    Name        = "oracle_db"
+    Application = "Oracle DB"
+    Name        = "Dotmatics-DEV-ORA-DB"
     Created_by     = "TF"
-    Environment = "Development"
-    Retention	= "DO NOT DELETE - DEVELOPMENT SERVER"
-    Backup	= "2Days"
+    Environment = "dev"
     Function = "Discovery"
-    OS	= "Linux" 
+    OS	= "Oracle Linux" 
     Owner	= "Informatics"
-    Application_Version = "2022.3"
+    Application_version = "19c"
+    Notes = "Development Dotmatics 2022.3 Oracle DB Server - 19c"
+    Depends_on = "Dotmatics"
   }
 }
 
@@ -83,32 +83,37 @@ EOF
 }
 
 resource "aws_volume_attachment" "or_ebs_att" {
-    count = length(var.disk_names)
-    device_name = "${var.disk_names[count.index]}"
-    volume_id   = "${element(aws_ebs_volume.orebs.*.id, count.index)}"
-    instance_id = "${element(aws_instance.ortest.*.id, count.index)}"
+    count = var.awsprops.count * length(var.disk_names)
+    device_name = element(var.disk_names, count.index % length(var.disk_names))
+    volume_id   = aws_ebs_volume.orebs.*.id[count.index]
+    instance_id = "${element(aws_instance.ortest.*.id, floor(count.index / length(var.disk_names)))}"
+
+    lifecycle {
+      ignore_changes = [volume_id, instance_id]
+    }
 }
 
 resource "aws_ebs_volume" "orebs" {
-   count             = length(var.disk_names)
+   count             = var.awsprops.count * length(var.disk_names)
    availability_zone = "${var.awsprops.region}b"
-   size              = var.disk_sizes[count.index]
+   size              = var.disk_sizes[count.index%length(var.disk_names)]
    type              = var.awsprops.volume_type
-   iops              = var.disk_iops[count.index]
+   iops              = var.disk_iops
   
    tags = {
-    Application = "Oracle"
-    Name        = "oracle_db_ebs_${count.index +1}"
+    Application = "Oracle DB"
+    Name        = "Dotmatics-DEV-ORA-DB"
     Created_by     = "TF"
-    Environment = "Development"
-    Retention	= "DO NOT DELETE - DEVELOPMENT SERVER"
-    Backup	= "2Days"
+    Environment = "dev"
     Function = "Discovery"
-    OS	= "Linux" 
+    OS	= "Oracle Linux" 
     Owner	= "Informatics"
-    Application_Version = "2022.3"
+    Application_version = "19c"
+    Notes = "Development Dotmatics 2022.3 Oracle DB Server - 19c"
+    Depends_on = "Dotmatics"
    }
- }
+
+}
 
 # EC2 resource
 resource "aws_instance" "ortest" {
@@ -123,7 +128,20 @@ resource "aws_instance" "ortest" {
     volume_size = var.awsprops.volume_size
     volume_type = var.awsprops.volume_type
     delete_on_termination = true
-    iops = element(var.disk_iops, 1)
+    iops = 200 
+
+    tags = {
+      Application = "Oracle DB"
+      Name        = "Dotmatics-DEV-ORA-DB-${count.index +1}"
+      Created_by     = "TF"
+      Environment = "dev"
+      Function = "Discovery"
+      OS	= "Oracle Linux" 
+      Owner	= "Informatics"
+      Application_version = "19c"
+      Notes = "Development Dotmatics 2022.3 Oracle DB Server - 19c"
+      Depends_on = "Dotmatics"
+    }
   }
 
   # Copy in the bash script we want to execute.
@@ -155,21 +173,18 @@ resource "aws_instance" "ortest" {
   iam_instance_profile = aws_iam_instance_profile.ec2_profile_ortest.name
 
   tags = {
-    Application = "Oracle"
-    Name        = "oracle_db_ec2_${count.index +1}"
+    Application = "Oracle DB"
+    Name        = "Dotmatics-DEV-ORA-DB-${count.index +1}"
     Created_by     = "TF"
-    Environment = "Development"
-    Retention	= "DO NOT DELETE - DEVELOPMENT SERVER"
-    Backup	= "2Days"
+    Environment = "dev"
     Function = "Discovery"
-    OS	= "Linux" 
+    OS	= "Oracle Linux" 
     Owner	= "Informatics"
-    Application_Version = "2022.3"
+    Application_version = "19c"
+    Notes = "Development Dotmatics 2022.3 Oracle DB Server - 19c"
+    Depends_on = "Dotmatics"
   }
 
-  monitoring              = true
-  disable_api_termination = false
-  ebs_optimized           = true
 }
 
 
