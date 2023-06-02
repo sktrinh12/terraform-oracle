@@ -29,6 +29,7 @@ set -ex
 
 # mount both ebs volumes
 echo "starting ebs mount script ..."
+sleep 60
 mkfs -t ext4 /dev/xvdb
 mkfs -t ext4 /dev/xvdc
 mkdir /oradata
