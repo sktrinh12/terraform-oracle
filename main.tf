@@ -89,7 +89,7 @@ resource "aws_volume_attachment" "or_ebs_att" {
     instance_id = "${element(aws_instance.ortest.*.id, floor(count.index / length(var.disk_names)))}"
 
     lifecycle {
-      ignore_changes = [volume_id, instance_id]
+      ignore_changes = [instance_id]
     }
 }
 
@@ -128,7 +128,6 @@ resource "aws_instance" "ortest" {
     volume_size = var.awsprops.volume_size
     volume_type = var.awsprops.volume_type
     delete_on_termination = true
-    iops = 200 
 
     tags = {
       Application = "Oracle DB"
